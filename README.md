@@ -42,7 +42,7 @@ pip install Flask Pillow numpy
 
 1. Clone this repository:
     ```sh
-    git clone https://github.com/yourusername/steganography-project.git
+    git clone https://github.com/AayushiSharma-10/steganography.git
     cd steganography-project
     ```
 
