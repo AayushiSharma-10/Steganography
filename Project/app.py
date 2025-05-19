@@ -121,8 +121,8 @@ def home():
     return render_template('home.html')
 
 @app.route('/image')
-def index():
-    return render_template('index.html')
+def image():
+    return render_template('image.html')
 
 @app.route('/audio')
 def audio():
