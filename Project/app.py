@@ -73,10 +73,14 @@ def decode_message(img):
 
 # ---------- Audio Steganography Logic ----------
 class AudioSteganography:
+    END_MARKER = '|||END|||'
+
     @staticmethod
     def load_audio(file):
         audio = wave.open(file, 'rb')
         params = audio.getparams()
+        if params.sampwidth != 2:
+            raise ValueError("Only 16-bit PCM WAV files are supported.")
         n_frame = audio.getnframes()
         audio_data = np.frombuffer(audio.readframes(n_frame), dtype=np.int16)
         audio.close()
@@ -84,7 +88,7 @@ class AudioSteganography:
 
     @staticmethod
     def msg_to_bits(msgs):
-        msgs += '###'
+        msgs += AudioSteganography.END_MARKER
         return ''.join(f"{ord(c):08b}" for c in msgs)
 
     @staticmethod
@@ -112,8 +116,9 @@ class AudioSteganography:
         bits = [(audio_data[2*i] & 1) for i in range(len(audio_data)//2)]
         chunks = [bits[i:i+8] for i in range(0, len(bits), 8)]
         decoded_message = ''.join([chr(int(''.join(map(str, byte)), 2)) for byte in chunks])
-        secret_msg = decoded_message.split('###')[0]
+        secret_msg = decoded_message.split(AudioSteganography.END_MARKER)[0]
         return secret_msg
+
 
 # ---------- Flask Routes ----------
 @app.route('/')
