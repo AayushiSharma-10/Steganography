@@ -71,53 +71,88 @@ def decode_message(img):
             message += char
     return message
 
+
 # ---------- Audio Steganography Logic ----------
 class AudioSteganography:
-    END_MARKER = '|||END|||'
 
+    END_MARKER = '|||END|||'     # indicates where the hidden message ends
+
+    # Loads a (.wav) file using the wave module
     @staticmethod
     def load_audio(file):
         audio = wave.open(file, 'rb')
+
+        # file parameters (channels, framerate, etc.).
         params = audio.getparams()
+
+        # .wav file should be in 16-bit PCM format (sampwidth == 2).
         if params.sampwidth != 2:
             raise ValueError("Only 16-bit PCM WAV files are supported.")
+        
+        # Extract raw audio samples into a NumPy array of 16-bit integers
         n_frame = audio.getnframes()
         audio_data = np.frombuffer(audio.readframes(n_frame), dtype=np.int16)
         audio.close()
+
         return audio_data, params
 
+    # Convert the secret message into a binary string
     @staticmethod
     def msg_to_bits(msgs):
-        msgs += AudioSteganography.END_MARKER
+        msgs += AudioSteganography.END_MARKER      # appends the end marker to the secret message
         return ''.join(f"{ord(c):08b}" for c in msgs)
 
+    # Encode the secret message in the audio data
     @staticmethod
     def encode_mesg(audio_data, secret_message):
-        bits = AudioSteganography.msg_to_bits(secret_message)
+        bits = AudioSteganography.msg_to_bits(secret_message)    #convert the secret message to binary bits
+
+        # check the capacity of audio data (each bit takes 2 samples)
         if len(bits) > len(audio_data)//2:
             raise ValueError("Secret Message is too large to hide in this audio file.")
+        
+        # copy of original audio data
         encoded_data = np.copy(audio_data)
+
         for i, bit in enumerate(bits):
+            # pick every second sample, clears the least sigificant bit (LSB) and set the LSB to the derised bit 
             encoded_data[2*i] = audio_data[2*i] & ~1 | int(bit)
+        
         return encoded_data
 
+    # save the encoded audio data 
     @staticmethod
     def save_audio(encoded_data, params):
+        # prepares a BytesIO stream (in-memory file)
         output = BytesIO()
+
+        #Writes the modified audio data into a valid .wav file using original params.
         with wave.open(output, 'wb') as audio:
             audio.setparams(params)
             audio.writeframes(encoded_data.tobytes())
         output.seek(0)
+
         return output
 
     @staticmethod
     def decode_mesg(file):
-        audio_data, _ = AudioSteganography.load_audio(file)
+        # Loads audio and converts it to sample array
+        audio_data, p = AudioSteganography.load_audio(file)
+
+        # read LSB from every 2nd sample to extract the hidden bits
         bits = [(audio_data[2*i] & 1) for i in range(len(audio_data)//2)]
+
+        # group the bits into bytes (8-bit each)
         chunks = [bits[i:i+8] for i in range(0, len(bits), 8)]
+
+        # covert each byte to a character 
         decoded_message = ''.join([chr(int(''.join(map(str, byte)), 2)) for byte in chunks])
+
+        # split teh END_MARKER from the decoded message02.
         secret_msg = decoded_message.split(AudioSteganography.END_MARKER)[0]
+
         return secret_msg
+
 
 
 # ---------- Flask Routes ----------
